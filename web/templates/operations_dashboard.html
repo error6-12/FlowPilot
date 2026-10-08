@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent 运营与调试后台</title>
+  <style>
+    :root { color-scheme: light; --blue:#2563eb; --pale:#eff6ff; --line:#dbeafe; --text:#172033; --muted:#64748b; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:"Microsoft YaHei",system-ui,sans-serif; color:var(--text); background:#f5f7fb; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:24px 32px; color:white; background:linear-gradient(120deg,#1d4ed8,#0891b2); }
+    header h1 { margin:0 0 6px; font-size:26px; } header p { margin:0; opacity:.86; }
+    .back-link { flex:none; padding:10px 16px; border:1px solid rgba(255,255,255,.55); border-radius:999px; color:white; background:rgba(255,255,255,.14); text-decoration:none; font-weight:600; transition:.2s ease; }
+    .back-link:hover { background:rgba(255,255,255,.25); transform:translateY(-1px); }
+    main { max-width:1400px; margin:auto; padding:24px; }
+    .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    button { border:0; border-radius:8px; padding:9px 16px; color:white; background:var(--blue); cursor:pointer; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+    .card, section { background:white; border:1px solid var(--line); border-radius:12px; box-shadow:0 4px 16px rgba(30,64,175,.05); }
+    .card { padding:18px; } .label { color:var(--muted); font-size:13px; } .value { margin-top:8px; font-size:26px; font-weight:700; }
+    section { margin-top:18px; padding:18px; overflow:auto; } section h2 { margin:0 0 14px; font-size:18px; }
+    table { width:100%; border-collapse:collapse; min-width:780px; } th,td { padding:10px 9px; text-align:left; border-bottom:1px solid #e8eef8; font-size:13px; }
+    th { color:#475569; background:var(--pale); } .ok { color:#15803d; } .bad { color:#b91c1c; }
+    .empty { padding:18px; text-align:center; color:var(--muted); } .error { color:#b91c1c; }
+    @media (max-width:900px) { .grid { grid-template-columns:repeat(2,1fr); } header { align-items:flex-start; padding:20px; } .back-link { padding:8px 12px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div><h1>Agent 运营与调试后台</h1><p>请求 Trace、工具调用与知识索引的统一运行视图</p></div>
+    <a class="back-link" href="/" aria-label="返回 FlowPilot 首页">← 返回 FlowPilot</a>
+  </header>
+  <main>
+    <div class="toolbar"><span id="updated" class="label">等待加载</span><button onclick="loadDashboard()">刷新数据</button></div>
+    <div class="grid">
+      <div class="card"><div class="label">Agent 请求数</div><div class="value" id="requests">—</div></div>
+      <div class="card"><div class="label">Agent 成功率</div><div class="value" id="agent-rate">—</div></div>
+      <div class="card"><div class="label">工具调用成功率</div><div class="value" id="tool-rate">—</div></div>
+      <div class="card"><div class="label">知识索引版本</div><div class="value" id="index-version">—</div></div>
+    </div>
+    <section><h2>最近 Agent Trace</h2><div id="trace-table" class="empty">暂无数据</div></section>
+    <section><h2>最近工具调用</h2><div id="tool-table" class="empty">暂无数据</div></section>
+    <section><h2>运行分析</h2><div id="analytics" class="empty">暂无数据</div></section>
+    <section><h2>知识索引</h2><div id="index-detail" class="empty">暂无数据</div></section>
+    <section><h2>生效 Prompt 版本</h2><div id="prompt-versions" class="empty">暂无数据</div></section>
+    <section><h2>Trace 详情</h2><div id="trace-detail" class="empty">点击 Trace ID 查看单次执行元数据。</div></section>
+  </main>
+  <script>
+    const pct = value => value == null ? '暂无' : `${(value * 100).toFixed(1)}%`;
+    const safe = value => String(value ?? '—').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function table(headers, rows) {
+      if (!rows.length) return '<div class="empty">暂无运行记录，请先在聊天页执行任务。</div>';
+      return `<table><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+    }
+    async function json(url) { const r=await fetch(url); if(!r.ok) throw new Error(`${url}: ${r.status}`); return r.json(); }
+    async function loadTrace(traceId) {
+      try {
+        const detail=await json(`/api/observability/traces/${encodeURIComponent(traceId)}`);
+        const trace=detail.trace;
+        document.getElementById('trace-detail').innerHTML=table(['字段','值'],[
+          ['trace_id','conversation_id','status','started_at','duration_ms','input_chars','output_chars','output_chunks','error_type','prompt_versions']
+            .map(key=>`<tr><td>${safe(key)}</td><td>${safe(key==='prompt_versions' ? JSON.stringify(trace[key]) : trace[key])}</td></tr>`).join(''),
+          ...detail.tool_calls.map(call=>`<tr><td>工具：${safe(call.tool_name)}</td><td>${call.success?'成功':'失败'} / ${safe(call.duration_ms)} ms</td></tr>`)
+        ]);
+      } catch(error) { document.getElementById('trace-detail').innerHTML=`<span class="error">${safe(error.message)}</span>`; }
+    }
+    async function loadDashboard() {
+      try {
+        const [agent,traces,tools,calls,index,analytics,versions] = await Promise.all([
+          json('/api/observability/summary'), json('/api/observability/traces?limit=20'),
+          json('/api/observability/tools/summary'), json('/api/observability/tools/calls?limit=20'),
+          json('/api/knowledge/index/status'), json('/api/observability/analytics?limit=100'),
+          json('/api/versions/prompts')
+        ]);
+        document.getElementById('requests').textContent=agent.total_requests ?? 0;
+        document.getElementById('agent-rate').textContent=pct(agent.success_rate);
+        document.getElementById('tool-rate').textContent=pct(tools.success_rate);
+        document.getElementById('index-version').textContent=index.data.version;
+        document.getElementById('trace-table').innerHTML=table(['时间','状态','耗时','会话','Trace ID'], traces.traces.map(x=>`<tr><td>${safe(x.started_at)}</td><td class="${x.status==='success'?'ok':'bad'}">${safe(x.status)}</td><td>${safe(x.duration_ms)} ms</td><td>${safe(x.conversation_id)}</td><td><button onclick="loadTrace('${safe(x.trace_id)}')">${safe(x.trace_id)}</button></td></tr>`));
+        document.getElementById('tool-table').innerHTML=table(['工具','状态','耗时','幂等命中','Trace ID'], calls.calls.map(x=>`<tr><td>${safe(x.tool_name)}</td><td class="${x.success?'ok':'bad'}">${x.success?'成功':'失败'}</td><td>${safe(x.duration_ms)} ms</td><td>${x.idempotency_hit?'是':'否'}</td><td>${safe(x.trace_id)}</td></tr>`));
+        const agentErrors=analytics.agent.error_distribution; const toolErrors=analytics.tools.summary.errors;
+        const errorRows=[...Object.entries(agentErrors).map(([name,count])=>`<tr><td>Agent</td><td>${safe(name)}</td><td>${count}</td></tr>`),...Object.entries(toolErrors).map(([name,count])=>`<tr><td>工具</td><td>${safe(name)}</td><td>${count}</td></tr>`)]
+        const latency=Object.entries(analytics.agent.latency_buckets).map(([name,count])=>`${safe(name)}：${count}`).join('　');
+        document.getElementById('analytics').innerHTML=`<div class="label">Agent 延迟分布：${latency || '暂无'}</div>${table(['来源','错误类型','次数'],errorRows)}`;
+        const i=index.data; document.getElementById('index-detail').innerHTML=table(['策略','文档数','维度','重排器','最近操作','更新时间'],[`<tr><td>${safe(i.retrieval_strategy)}</td><td>${safe(i.document_count)}</td><td>${safe(i.dimension)}</td><td>${safe(i.reranker)}</td><td>${safe(i.last_operation)}</td><td>${safe(i.updated_at)}</td></tr>`]);
+        document.getElementById('prompt-versions').innerHTML=table(['Prompt','生效版本','内容摘要','变更说明'],versions.versions.filter(x=>x.is_active).map(x=>`<tr><td>${safe(x.name)}</td><td>${safe(x.version)}</td><td>${safe(x.content_sha256.slice(0,12))}</td><td>${safe(x.change_note)}</td></tr>`));
+        document.getElementById('updated').textContent=`最近刷新：${new Date().toLocaleString()}`;
+      } catch (error) { document.getElementById('updated').innerHTML=`<span class="error">加载失败：${safe(error.message)}</span>`; }
+    }
+    loadDashboard();
+  </script>
+</body>
+</html>

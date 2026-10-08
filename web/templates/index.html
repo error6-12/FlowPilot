@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowPilot - 企业员工服务与流程协同平台</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .chat-container { 
+            width: 90%;
+            max-width: 800px; 
+            height: 90vh;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 20px 30px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        
+        .header-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .header-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .nav-bar {
+            background: rgba(255,255,255,0.98);
+            padding: 15px 30px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .nav-btn { 
+            padding: 8px 16px;
+            border-radius: 25px;
+            border: none;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .nav-btn:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+        }
+        
+        .chat-content {
+            flex: 1;
+            padding: 20px 30px;
+            overflow-y: auto;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.9), rgba(248,250,252,0.9));
+            scroll-behavior: smooth;
+        }
+        
+        .chat-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .chat-content::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.05);
+            border-radius: 3px;
+        }
+        
+        .chat-content::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 3px;
+        }
+        
+        .message { 
+            display: flex; 
+            margin-bottom: 20px; 
+            align-items: flex-end;
+            animation: messageSlide 0.3s ease;
+        }
+        
+        @keyframes messageSlide {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.user { 
+            flex-direction: row-reverse; 
+        }
+        
+        .avatar { 
+            width: 45px; 
+            height: 45px; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .message.user .avatar {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        
+        .message.bot .avatar {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+        
+        .bubble { 
+            max-width: 75%; 
+            padding: 15px 20px; 
+            border-radius: 20px; 
+            font-size: 15px;
+            line-height: 1.5;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .message.user .bubble { 
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white; 
+            border-bottom-right-radius: 5px;
+        }
+        
+        .message.bot .bubble { 
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            color: #2c3e50; 
+            border-bottom-left-radius: 5px;
+            border: 2px solid rgba(79, 172, 254, 0.2);
+            font-weight: 500;
+        }
+        
+        /* 机器人回复中的特殊文本样式 */
+        .bot-reply {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .bot-thought {
+            color: #7f8c8d;
+            font-size: 14px;
+            line-height: 1.65;
+        }
+
+        .bot-details {
+            margin-top: 12px;
+            border-top: 1px solid rgba(52, 152, 219, 0.16);
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .bot-details summary {
+            width: fit-content;
+            padding: 8px 2px 2px;
+            color: #64748b;
+            cursor: pointer;
+            list-style: none;
+            user-select: none;
+        }
+
+        .bot-details summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .bot-details summary::before {
+            content: '▸';
+            display: inline-block;
+            margin-right: 6px;
+            transition: transform .18s ease;
+        }
+
+        .bot-details[open] summary::before {
+            transform: rotate(90deg);
+        }
+
+        .bot-details-content {
+            margin-top: 8px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+
+        .bot-details-section + .bot-details-section {
+            margin-top: 10px;
+        }
+
+        .bot-details-title {
+            margin-bottom: 4px;
+            color: #475569;
+            font-weight: 700;
+        }
+
+        .workflow-card {
+            margin-top: 14px;
+            overflow: hidden;
+            border: 1px solid #bae6fd;
+            border-radius: 14px;
+            background: linear-gradient(145deg, #f0f9ff, #ffffff);
+            box-shadow: 0 6px 18px rgba(14, 116, 144, 0.08);
+        }
+
+        .workflow-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            color: #0f4c5c;
+            background: rgba(186, 230, 253, 0.42);
+        }
+
+        .workflow-card-title {
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .workflow-status {
+            flex: none;
+            padding: 4px 9px;
+            border-radius: 999px;
+            color: #047857;
+            background: #d1fae5;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .workflow-card-body {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px 16px;
+            padding: 14px;
+        }
+
+        .workflow-field-wide {
+            grid-column: 1 / -1;
+        }
+
+        .workflow-field-label {
+            margin-bottom: 3px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .workflow-field-value {
+            color: #1e293b;
+            font-size: 14px;
+            font-weight: 650;
+            overflow-wrap: anywhere;
+        }
+
+        .workflow-card-footnote {
+            padding: 0 14px 12px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        @media (max-width: 700px) {
+            .workflow-card-body { grid-template-columns: 1fr; }
+            .workflow-field-wide { grid-column: auto; }
+        }
+        
+        .bot-success {
+            color: #27ae60;
+            font-weight: 700;
+            background: linear-gradient(135deg, #d5f4e6 0%, #e8f8f5 100%);
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #27ae60;
+        }
+        
+        .bot-error {
+            color: #e74c3c;
+            font-weight: 600;
+            background: linear-gradient(135deg, #fadbd8 0%, #f2d7d5 100%);
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .bot-info {
+            color: #3498db;
+            font-weight: 600;
+            background: linear-gradient(135deg, #d6eaf8 0%, #eaf4fd 100%);
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #3498db;
+        }
+        
+        .input-area {
+            padding: 20px 30px;
+            background: rgba(255,255,255,0.95);
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        #chat-form { 
+            display: flex; 
+            gap: 15px;
+            align-items: center;
+        }
+        
+        #user-input { 
+            flex: 1; 
+            padding: 15px 20px; 
+            border-radius: 25px; 
+            border: 2px solid rgba(0,0,0,0.1); 
+            font-size: 15px;
+            background: white;
+            transition: all 0.3s ease;
+            outline: none;
+            resize: none;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        
+        #user-input:focus {
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+        
+        #user-input::placeholder {
+            color: #999;
+            opacity: 1;
+        }
+        
+        #send-btn { 
+            padding: 15px 25px; 
+            border-radius: 25px; 
+            border: none; 
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white; 
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        #send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        }
+        
+        #send-btn:active {
+            transform: translateY(0);
+        }
+        
+        .typing-indicator {
+            display: none;
+            padding: 15px 20px;
+            background: white;
+            border-radius: 20px;
+            margin: 10px 0;
+            border: 1px solid rgba(0,0,0,0.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .typing-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+        
+        .typing-dots span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+            30% { transform: translateY(-10px); opacity: 1; }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .chat-container {
+                width: 100%;
+                height: 100vh;
+                border-radius: 15px;
+            }
+            
+            .header, .nav-bar, .chat-content, .input-area {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+            
+            .nav-bar {
+                justify-content: flex-start;
+                overflow-x: auto;
+                padding-bottom: 20px;
+            }
+            
+            .bubble {
+                max-width: 85%;
+            }
+            
+            .header-title {
+                font-size: 20px;
+            }
+            
+            .header-subtitle {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <!-- 头部区域 -->
+        <div class="header">
+            <div class="header-title">
+                <i class="fas fa-robot"></i>
+                FlowPilot
+            </div>
+            <div class="header-subtitle">
+                企业员工服务与流程协同平台
+            </div>
+        </div>
+        
+        <!-- 导航栏 -->
+        <div class="nav-bar">
+            <button class="nav-btn" onclick="window.location.href='/knowledge'">
+                <i class="fas fa-database"></i>
+                知识库管理
+            </button>
+            <button class="nav-btn" onclick="window.location.href='/ops'">
+                <i class="fas fa-chart-line"></i>
+                Agent 运营后台
+            </button>
+            <button class="nav-btn" onclick="window.location.href='/docs'">
+                <i class="fas fa-diagram-project"></i>
+                流程 API
+            </button>
+            <button class="nav-btn" id="clear-btn">
+                <i class="fas fa-trash-alt"></i>
+                清空对话
+            </button>
+        </div>
+        
+        <!-- 聊天内容区域 -->
+        <div class="chat-content" id="chat-box">
+            <!-- 欢迎消息 -->
+            <div class="message bot">
+                <div class="avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="bubble">
+                    <div class="bot-info">
+                        👋 您好！我是企业智能协作助手，很高兴为您服务！
+                    </div>
+                    <div class="bot-reply">
+                        我可以帮您：<br>
+                        • 📚 查询企业制度与内部知识<br>
+                        • 🧾 发起请假或费用报销<br>
+                        • 🛠️ 创建 IT 支持工单<br>
+                        • 📅 预订会议室与企业资源
+                    </div>
+                    <div class="bot-success">
+                        请告诉我您需要什么帮助？
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 打字指示器 -->
+        <div class="typing-indicator" id="typing-indicator">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <span style="margin-left: 10px; color: #666;">AI正在思考中...</span>
+        </div>
+        
+        <!-- 输入区域 -->
+        <div class="input-area">
+            <form id="chat-form">
+                <input type="text" id="user-input" placeholder="请输入您的问题或需求..." autocomplete="off" required>
+                <button id="send-btn" type="submit">
+                    <i class="fas fa-paper-plane"></i>
+                    发送
+                </button>
+            </form>
+        </div>
+    </div>
+    <script>
+    const chatBox = document.getElementById('chat-box');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const clearBtn = document.getElementById('clear-btn');
+    const typingIndicator = document.getElementById('typing-indicator');
+    let lastBotBubble = null;
+    let conversationId = localStorage.getItem('conversation_id') || crypto.randomUUID();
+    localStorage.setItem('conversation_id', conversationId);
+
+    function addMessage(text, sender) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message ' + sender;
+        
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        if (sender === 'user') {
+            avatar.innerHTML = '<i class="fas fa-user"></i>';
+        } else {
+            avatar.innerHTML = '<i class="fas fa-robot"></i>';
+        }
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.innerHTML = text.replace(/\n/g, '<br>');
+        
+        msgDiv.appendChild(avatar);
+        msgDiv.appendChild(bubble);
+        chatBox.appendChild(msgDiv);
+        
+        // 平滑滚动到底部
+        requestAnimationFrame(() => {
+            chatBox.scrollTo({
+                top: chatBox.scrollHeight,
+                behavior: 'smooth'
+            });
+        });
+        
+        if (sender === 'bot') lastBotBubble = bubble;
+    }
+
+    function showTypingIndicator() {
+        typingIndicator.style.display = 'block';
+        requestAnimationFrame(() => {
+            chatBox.scrollTo({
+                top: chatBox.scrollHeight,
+                behavior: 'smooth'
+            });
+        });
+    }
+
+    function hideTypingIndicator() {
+        typingIndicator.style.display = 'none';
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[char]);
+    }
+
+    function formatMessageText(value) {
+        return escapeHtml(value).replace(/\n/g, '<br>');
+    }
+
+    function splitReplySources(replyText) {
+        const sourceHeader = /(?:^|\n)\s*(?:来源文件|参考来源|来源)\s*[：:]/m;
+        const match = sourceHeader.exec(replyText);
+        if (!match) return {answer: replyText.trim(), sources: []};
+
+        const answer = replyText.slice(0, match.index).trim();
+        const sourceBlock = replyText.slice(match.index).trim();
+        const sources = [];
+        for (const rawLine of sourceBlock.split(/\r?\n/)) {
+            let line = rawLine.trim();
+            if (!line || /^(?:来源文件|参考来源|来源)\s*[：:]?$/i.test(line)) continue;
+            line = line
+                .replace(/^[-*•]\s*/, '')
+                .replace(/^\[\d+\]\s*/, '')
+                .trim();
+            if (line && !sources.includes(line)) sources.push(line);
+        }
+        return {answer, sources};
+    }
+
+    function formatWorkflowDate(value) {
+        if (!value) return '—';
+        const normalized = /(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value}Z`;
+        const date = new Date(normalized);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', {hour12: false});
+    }
+
+    function workflowLabel(type) {
+        return ({
+            it_support: 'IT 工单',
+            leave: '请假申请',
+            reimbursement: '费用报销',
+            resource_booking: '资源预订'
+        })[type] || type || '企业流程';
+    }
+
+    function workflowStatusLabel(status) {
+        return ({
+            draft: '草稿',
+            collecting: '信息收集中',
+            ready_for_confirmation: '待确认',
+            submitted: '已提交',
+            cancelled: '已取消'
+        })[status] || status || '未知状态';
+    }
+
+    function renderWorkflowCard(workflow) {
+        const fieldLabels = {
+            issue_description: '问题描述', urgency: '紧急程度', impact_scope: '影响范围',
+            device_id: '设备编号', leave_type: '请假类型', start_date: '开始日期',
+            end_date: '结束日期', reason: '原因', amount: '金额', expense_type: '报销类型',
+            resource: '资源名称', start_time: '开始时间', end_time: '结束时间'
+        };
+        const fields = Object.entries(workflow.fields || {}).map(([key, value]) => {
+            const isWide = key === 'issue_description' || key === 'reason';
+            const displayValue = Array.isArray(value) ? value.join('、') : String(value ?? '—');
+            return `<div class="${isWide ? 'workflow-field-wide' : ''}">` +
+                `<div class="workflow-field-label">${escapeHtml(fieldLabels[key] || key)}</div>` +
+                `<div class="workflow-field-value">${escapeHtml(displayValue)}</div></div>`;
+        }).join('');
+        return `<div class="workflow-card" data-workflow-id="${escapeHtml(workflow.workflow_id)}">` +
+            `<div class="workflow-card-header"><div class="workflow-card-title">✓ ${escapeHtml(workflowLabel(workflow.workflow_type))}已生成</div>` +
+            `<div class="workflow-status">${escapeHtml(workflowStatusLabel(workflow.status))}</div></div>` +
+            `<div class="workflow-card-body">` +
+            `<div><div class="workflow-field-label">流程编号</div><div class="workflow-field-value">${escapeHtml(workflow.workflow_id)}</div></div>` +
+            `<div><div class="workflow-field-label">创建时间</div><div class="workflow-field-value">${escapeHtml(formatWorkflowDate(workflow.created_at))}</div></div>` +
+            fields + `</div><div class="workflow-card-footnote">该凭证来自 Workflow API 中已持久化的真实记录。</div></div>`;
+    }
+
+    async function hydrateWorkflowCard(bubble, rawResponse) {
+        if (!bubble) return;
+        const workflowId = (rawResponse || '').match(/WF-[A-Z0-9]+/i)?.[0];
+        if (!workflowId || bubble.querySelector(`[data-workflow-id="${workflowId}"]`)) return;
+        try {
+            const response = await fetch(`/api/workflows/${encodeURIComponent(workflowId)}`);
+            if (!response.ok) return;
+            const workflow = await response.json();
+            bubble.insertAdjacentHTML('beforeend', renderWorkflowCard(workflow));
+            chatBox.scrollTo({top: chatBox.scrollHeight, behavior: 'smooth'});
+        } catch (error) {
+            console.warn('Failed to load persisted workflow record:', error);
+        }
+    }
+
+    function updateLastBotMessage(text) {
+        if (lastBotBubble) {
+            // 用正则分割所有 [THOUGHT]、[REPLY]、[STATE] 标签及其内容
+            const pattern = /(\[THOUGHT[^\]]*\][\s\S]*?)(?=\[THOUGHT|\[REPLY|\[STATE|\[ERROR|$)|(\[REPLY[^\]]*\][\s\S]*?)(?=\[THOUGHT|\[REPLY|\[STATE|\[ERROR|$)|(\[ERROR\][\s\S]*?)(?=\[THOUGHT|\[REPLY|\[STATE|\[ERROR|$)/g;
+            const replies = [];
+            const errors = [];
+            const thoughts = [];
+            const sources = [];
+            let match;
+            while ((match = pattern.exec(text)) !== null) {
+                if (match[1]) {
+                    // 内部路由/转交记录默认折叠，不干扰最终答案阅读。
+                    const thoughtText = match[1].replace(/\[THOUGHT[^\]]*\]/, '').trim();
+                    if (thoughtText) thoughts.push(thoughtText);
+                } else if (match[2]) {
+                    const rawReply = match[2].replace(/\[REPLY[^\]]*\]/, '').trim();
+                    const parsed = splitReplySources(rawReply);
+                    parsed.sources.forEach(source => {
+                        if (!sources.includes(source)) sources.push(source);
+                    });
+                    const replyText = formatMessageText(parsed.answer);
+                    
+                    // 检查回复类型并应用不同样式
+                    let styledReply = replyText;
+                    if (replyText.includes('提交成功') || replyText.includes('创建成功') || replyText.includes('预订成功')) {
+                        // 成功消息
+                        styledReply = `<div class="bot-success">✅ ${replyText}</div>`;
+                    } else if (replyText.includes('抱歉') || replyText.includes('失败') || replyText.includes('不空闲')) {
+                        // 错误消息
+                        styledReply = `<div class="bot-error">❌ ${replyText}</div>`;
+                    } else if (replyText.includes('请问') || replyText.includes('需要')) {
+                        // 询问消息
+                        styledReply = `<div class="bot-info">💬 ${replyText}</div>`;
+                    } else {
+                        // 普通回复，使用突出的颜色
+                        styledReply = `<div class="bot-reply">${replyText}</div>`;
+                    }
+                    
+                    replies.push(styledReply);
+                } else if (match[3]) {
+                    const errorText = match[3].replace(/\[ERROR\]/, '').trim();
+                    if (errorText) errors.push(`<div class="bot-error">❌ ${formatMessageText(errorText)}</div>`);
+                }
+            }
+
+            const detailSections = [];
+            if (thoughts.length) {
+                detailSections.push(
+                    `<div class="bot-details-section"><div class="bot-details-title">Agent 处理过程</div>` +
+                    `<div class="bot-thought">${thoughts.map(formatMessageText).join('<br>')}</div></div>`
+                );
+            }
+            if (sources.length) {
+                detailSections.push(
+                    `<div class="bot-details-section"><div class="bot-details-title">资料来源</div>` +
+                    `<div>${sources.map(source => `• ${formatMessageText(source)}`).join('<br>')}</div></div>`
+                );
+            }
+            const details = detailSections.length
+                ? `<details class="bot-details"><summary>查看处理详情</summary><div class="bot-details-content">${detailSections.join('')}</div></details>`
+                : '';
+            lastBotBubble.innerHTML = replies.join('') + errors.join('') + details;
+            
+            // 内容更新后自动滚动
+            requestAnimationFrame(() => {
+                chatBox.scrollTo({
+                    top: chatBox.scrollHeight,
+                    behavior: 'smooth'
+                });
+            });
+        }
+    }
+
+    chatForm.onsubmit = async function(e) {
+        e.preventDefault();
+        const text = userInput.value.trim();
+        if (!text) return;
+        
+        // 禁用发送按钮
+        const sendBtn = document.getElementById('send-btn');
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 发送中...';
+        
+        addMessage(text, 'user');
+        userInput.value = '';
+        
+        // 显示打字指示器
+        showTypingIndicator();
+        
+        // 添加空的机器人消息
+        addMessage('', 'bot');
+        lastBotBubble = chatBox.querySelector('.message.bot:last-child .bubble');
+        
+        try {
+            const res = await fetch('/chat/stream', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: text, conversation_id: conversationId})
+            });
+
+            const responseConversationId = res.headers.get('X-Conversation-ID');
+            if (responseConversationId) {
+                conversationId = responseConversationId;
+                localStorage.setItem('conversation_id', conversationId);
+            }
+            
+            hideTypingIndicator();
+            
+            const reader = res.body.getReader();
+            let botMsg = '';
+            let decoder = new TextDecoder();
+            
+            while (true) {
+                const {done, value} = await reader.read();
+                if (done) break;
+                botMsg += decoder.decode(value, {stream: true});
+                updateLastBotMessage(botMsg);
+            }
+            await hydrateWorkflowCard(lastBotBubble, botMsg);
+        } catch (error) {
+            hideTypingIndicator();
+            lastBotBubble.innerHTML = '抱歉，服务暂时不可用，请稍后再试。';
+            console.error('Chat error:', error);
+        } finally {
+            // 恢复发送按钮
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> 发送';
+            userInput.focus();
+        }
+    }
+
+    clearBtn.onclick = async function() {
+        try {
+            await fetch(`/chat/session/${encodeURIComponent(conversationId)}`, {
+                method: 'DELETE'
+            });
+        } catch (error) {
+            console.warn('Failed to reset server-side conversation:', error);
+        }
+        conversationId = crypto.randomUUID();
+        localStorage.setItem('conversation_id', conversationId);
+
+        // 保留欢迎消息，只清除其他对话
+        const welcomeMessage = chatBox.querySelector('.message.bot').cloneNode(true);
+        chatBox.innerHTML = '';
+        chatBox.appendChild(welcomeMessage);
+        
+        // 重新设置lastBotBubble为null
+        lastBotBubble = null;
+        
+        // 聚焦输入框
+        userInput.focus();
+    }
+    
+    // 添加回车键发送功能
+    userInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            chatForm.dispatchEvent(new Event('submit'));
+        }
+    });
+    
+    // 页面加载完成后聚焦输入框
+    window.addEventListener('load', function() {
+        userInput.focus();
+    });
+    </script>
+</body>
+</html>
