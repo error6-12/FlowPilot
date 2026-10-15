@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class AppointmentService:
     """预约服务类"""
     
-    def __init__(self, db_path: str = 'sqlite:///data/smart_appointment.db'):
+    def __init__(self, db_path: str | None = None):
         self.db_router = DatabaseRouter(db_path)
         self.technician_repo = self.db_router.technicians
     

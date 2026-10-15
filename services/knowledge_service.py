@@ -16,7 +16,7 @@ class KnowledgeService:
     
     def __init__(
         self,
-        db_path: str = 'sqlite:///data/smart_appointment.db',
+        db_path: str | None = None,
         reranker: Reranker | None = None,
     ):
         # 使用统一的DatabaseRouter，符合架构设计

@@ -1,4 +1,4 @@
-"""Import the bundled enterprise Markdown knowledge base into SQLite + FAISS.
+"""Import the bundled enterprise Markdown knowledge base into the configured database + FAISS.
 
 The importer is idempotent: previously imported enterprise chunks are soft
 deleted only after every new embedding has been generated successfully.
@@ -21,6 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from config.model_provider import create_embedding_model
+from config.database import DatabaseConfig
 from db.models import Base, KnowledgeDocument
 
 
@@ -152,8 +153,8 @@ def import_chunks(chunks: list[KnowledgeChunk], replace_legacy: bool = True) -> 
 
     import os
 
-    database_url = os.getenv("DATABASE_URL", "sqlite:///data/smart_appointment.db")
-    engine = create_engine(database_url)
+    database_url = DatabaseConfig().connection_string
+    engine = create_engine(database_url, **DatabaseConfig(database_url).get_engine_kwargs())
     Base.metadata.create_all(engine)
     deactivated = 0
 

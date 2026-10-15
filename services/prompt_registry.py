@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-import os
+from config.database import DatabaseConfig
 from typing import Any
 
 from db.base import SessionManager
@@ -13,7 +13,7 @@ from services.prompt_catalog import BUILTIN_PROMPTS
 
 class PromptRegistry:
     def __init__(self, database_url: str | None = None):
-        self.database_url = database_url or os.getenv("DATABASE_URL", "sqlite:///data/smart_appointment.db")
+        self.database_url = DatabaseConfig(database_url).connection_string
         self.sessions = SessionManager(self.database_url)
         self.seed_builtins()
 

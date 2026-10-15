@@ -14,7 +14,7 @@ class InvalidWorkflowTransition(ValueError):
 
 
 class WorkflowEngine:
-    def __init__(self, db_path: str = "sqlite:///data/smart_appointment.db"):
+    def __init__(self, db_path: str | None = None):
         self.session_manager = SessionManager(db_path)
         self.repository = WorkflowRepository(self.session_manager)
 

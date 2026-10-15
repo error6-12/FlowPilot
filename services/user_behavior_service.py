@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class UserBehaviorService:
     """用户行为服务类"""
     
-    def __init__(self, db_path: str = 'sqlite:///data/smart_appointment.db'):
+    def __init__(self, db_path: str | None = None):
         self.db_router = DatabaseRouter(db_path)
         self.user_behavior_repo = self.db_router.user_behavior
     

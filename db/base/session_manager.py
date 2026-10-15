@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from sqlalchemy import create_engine
+from config.database import DatabaseConfig
 from sqlalchemy.orm import sessionmaker, scoped_session
 from ..models import Base
 
@@ -14,14 +15,15 @@ class SessionManager:
     3. 处理事务和异常回滚
     """
     
-    def __init__(self, db_path='sqlite:///data/smart_appointment.db'):
+    def __init__(self, db_path=None):
         """
         初始化会话管理器
         
         Args:
             db_path: 数据库连接路径
         """
-        self.engine = create_engine(db_path)
+        config = DatabaseConfig(db_path)
+        self.engine = create_engine(config.connection_string, **config.get_engine_kwargs())
         Base.metadata.create_all(self.engine)
         self.Session = scoped_session(sessionmaker(bind=self.engine))
 
@@ -43,7 +45,7 @@ class SessionManager:
             session.rollback()
             raise
         finally:
-            session.close()
+            self.Session.remove()
 
     def close(self):
         """关闭会话管理器"""

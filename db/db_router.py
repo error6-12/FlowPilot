@@ -13,7 +13,7 @@ class DatabaseRouter:
     3. 协调各个Repository的操作
     """
     
-    def __init__(self, db_path: str = 'sqlite:///data/smart_appointment.db'):
+    def __init__(self, db_path: str | None = None):
         """
         初始化数据库路由器
         
