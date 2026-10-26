@@ -466,7 +466,7 @@
     <div class="container">
         <div class="header">
             <h2><i class="fas fa-brain"></i> 知识库管理系统</h2>
-            <p>管理推拿房知识库，测试智能检索功能</p>
+            <p>管理企业知识库，测试智能检索功能</p>
         </div>
         
         <div class="content">
@@ -743,11 +743,12 @@
                 });
                 
                 const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || '搜索服务暂时不可用');
                 displaySearchResults(data);
                 
             } catch (error) {
                 console.error('搜索失败:', error);
-                showAlert('搜索失败', 'error', 'searchResults');
+                showAlert('搜索失败，请稍后重试或检查服务状态。', 'error', 'searchResults');
             }
         }
         
@@ -976,34 +977,5 @@
         }
     </script>
     </div>
-</body>
-</html>
-            const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
-            const alertHtml = `<div class="alert ${alertClass}">${message}</div>`;
-            
-            if (containerId) {
-                document.getElementById(containerId).innerHTML = alertHtml;
-            } else {
-                // 在页面顶部显示
-                const container = document.querySelector('.container');
-                const alertDiv = document.createElement('div');
-                alertDiv.innerHTML = alertHtml;
-                container.insertBefore(alertDiv, container.firstChild);
-                
-                // 3秒后自动消失
-                setTimeout(() => {
-                    alertDiv.remove();
-                }, 3000);
-            }
-        }
-        
-        // 点击模态框外部关闭
-        window.onclick = function(event) {
-            const modal = document.getElementById('editModal');
-            if (event.target === modal) {
-                closeEditModal();
-            }
-        }
-    </script>
 </body>
 </html>

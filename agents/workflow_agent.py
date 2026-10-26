@@ -21,6 +21,7 @@ from services.enterprise_tools import (
     create_workflow_tool_registry,
 )
 from services.workflow_engine import WorkflowEngine
+from services.workflow_validation import validate_workflow
 from services.prompt_registry import prompt_registry
 
 
@@ -154,6 +155,10 @@ class WorkflowAgent:
         self.current_draft.workflow_id = previous_workflow_id
 
         if extraction.user_action is WorkflowAction.CONFIRM:
+            try:
+                validate_workflow(self.current_draft.workflow_type, self.current_draft.fields)
+            except ValueError:
+                return self.workflow_engine.save_draft(self.current_draft, self.session_id)
             self.last_tool_result = await self._submit_with_tool(self.current_draft)
             if self.last_tool_result.success:
                 self.current_draft.status = WorkflowStatus.SUBMITTED
@@ -236,8 +241,15 @@ class WorkflowAgent:
             yield f"[REPLY][流程机器人]已创建{label}草稿，还需要补充：{missing}。"
             return
 
+        try:
+            validate_workflow(draft.workflow_type, draft.fields)
+        except ValueError as error:
+            yield f"[REPLY][流程机器人]{error} 当前仍为草稿，未提交。"
+            return
+
         summary = "、".join(
-            f"{FIELD_LABELS.get(key, key)}：{value}" for key, value in draft.fields.items()
+            f"{('设备与位置说明' if key == 'description' and draft.workflow_type is WorkflowType.IT_SUPPORT else FIELD_LABELS.get(key, key))}：{value}" for key, value in draft.fields.items()
+            if value is not None and key in FIELD_LABELS
         )
         if draft.assumptions:
             assumptions = "；".join(draft.assumptions)

@@ -3,7 +3,7 @@
 """
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import asyncio
 
 from services.knowledge_service import KnowledgeService
@@ -33,7 +33,9 @@ class KnowledgeItem(BaseModel):
 
 
 class SearchRequest(BaseModel):
-    query: str
+    query: str = Field(min_length=1, max_length=2000)
+    top_k: int = Field(default=5, ge=1, le=50)
+    category: str | None = None
 
 
 @router.get("/")
@@ -156,11 +158,12 @@ async def search_knowledge(request: SearchRequest):
     """搜索知识库"""
     try:
         knowledge_service = await get_knowledge_service()
-        results = await knowledge_service.search(request.query)
+        results = await knowledge_service.search(request.query, top_k=request.top_k, category=request.category or None)
         return {
             "status": "success",
             "data": results,
             "count": len(results)
+            ,"results": results, "query": request.query, "total_found": len(results)
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"搜索知识库失败: {str(e)}")

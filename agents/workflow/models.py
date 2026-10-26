@@ -51,7 +51,7 @@ class WorkflowDraft(BaseModel):
         fields: dict[str, str | float],
         assumptions: list[str] | None = None,
     ):
-        missing = [field for field in REQUIRED_FIELDS[workflow_type] if not fields.get(field)]
+        missing = [field for field in REQUIRED_FIELDS[workflow_type] if fields.get(field) in (None, "")]
         status = (
             WorkflowStatus.READY_FOR_CONFIRMATION
             if workflow_type is not WorkflowType.UNKNOWN and not missing

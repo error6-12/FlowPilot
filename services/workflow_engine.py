@@ -7,6 +7,7 @@ from uuid import uuid4
 from agents.workflow import WorkflowDraft, WorkflowStatus
 from db.base.session_manager import SessionManager
 from db.repositories.workflow_repository import WorkflowRepository
+from services.workflow_validation import validate_workflow
 
 
 class InvalidWorkflowTransition(ValueError):
@@ -37,6 +38,7 @@ class WorkflowEngine:
     def submit(self, draft: WorkflowDraft, conversation_id: str) -> WorkflowDraft:
         if draft.status is not WorkflowStatus.READY_FOR_CONFIRMATION:
             raise InvalidWorkflowTransition("Only a complete draft can be submitted")
+        validate_workflow(draft.workflow_type, draft.fields)
         if draft.workflow_id is None:
             self.save_draft(draft, conversation_id)
         draft.status = WorkflowStatus.SUBMITTED
