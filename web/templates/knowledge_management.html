@@ -583,6 +583,23 @@
     </div>
     
     <script>
+        function knowledgePreview(content) {
+            const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            const inline = value => escape(value).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+            const lines = String(content ?? '').split(/\r?\n/);
+            const parts = [];
+            for (let i=0; i<lines.length; i++) {
+                const cells = line => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(x => x.trim());
+                if (lines[i].includes('|') && i+1<lines.length && /^\s*\|?\s*:?-{3,}/.test(lines[i+1])) {
+                    let table='<div style="overflow:auto"><table><tr>'+cells(lines[i]).map(x=>`<th>${inline(x)}</th>`).join('')+'</tr>';
+                    i+=2;
+                    while(i<lines.length && lines[i].includes('|')) {table+='<tr>'+cells(lines[i]).map(x=>`<td>${inline(x)}</td>`).join('')+'</tr>';i++;}
+                    i--;parts.push(table+'</table></div>');
+                } else if (/^#{1,6}\s+/.test(lines[i])) parts.push('<div><strong>'+inline(lines[i].replace(/^#{1,6}\s+/,''))+'</strong></div>');
+                else parts.push('<div>'+inline(lines[i].replace(/^\s*[-*]\s+/, '• '))+'</div>');
+            }
+            return '<details><summary>'+escape(String(content ?? '').replace(/[#*`]/g,'').slice(0,90))+'…（展开全文）</summary>'+parts.join('')+'</details>';
+        }
         let knowledgeData = [];
         let categories = [];
         
@@ -644,7 +661,7 @@
                         </div>
                         ${docs.map(doc => `
                             <div class="knowledge-item">
-                                <div class="knowledge-content">${doc.content}</div>
+                                <div class="knowledge-content">${knowledgePreview(doc.content)}</div>
                                 <div class="knowledge-meta">
                                     <span>ID: ${doc.id}</span>
                                     <span>更新: ${new Date(doc.updated_at).toLocaleString()}</span>
@@ -674,7 +691,7 @@
             
             const html = knowledgeData.map(doc => `
                 <div class="knowledge-item">
-                    <div class="knowledge-content">${doc.content}</div>
+                    <div class="knowledge-content">${knowledgePreview(doc.content)}</div>
                     <div class="knowledge-meta">
                         <span>ID: ${doc.id}</span>
                         <span class="category-badge">${doc.category || '未分类'}</span>
@@ -775,7 +792,7 @@
                     ${data.results.map((doc, index) => `
                         <div class="knowledge-item search-result">
                             <div class="knowledge-content">
-                                ${doc.content}
+                                ${knowledgePreview(doc.content)}
                                 <span class="score-badge">相似度: ${(doc.score || 0).toFixed(3)}</span>
                             </div>
                             <div class="knowledge-meta">

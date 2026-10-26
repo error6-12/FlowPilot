@@ -34,7 +34,7 @@
     <div class="toolbar"><span id="updated" class="label">等待加载</span><button onclick="loadDashboard()">刷新数据</button></div>
     <div class="grid">
       <div class="card"><div class="label">Agent 请求数</div><div class="value" id="requests">—</div></div>
-      <div class="card"><div class="label">Agent 成功率</div><div class="value" id="agent-rate">—</div></div>
+      <div class="card"><div class="label" title="请求未抛出系统异常的比例，不代表业务校验通过或任务完成率">请求执行成功率</div><div class="value" id="agent-rate">—</div></div>
       <div class="card"><div class="label">工具调用成功率</div><div class="value" id="tool-rate">—</div></div>
       <div class="card"><div class="label">知识索引版本</div><div class="value" id="index-version">—</div></div>
     </div>
@@ -48,8 +48,8 @@
   <script>
     const pct = value => value == null ? '暂无' : `${(value * 100).toFixed(1)}%`;
     const safe = value => String(value ?? '—').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    function table(headers, rows) {
-      if (!rows.length) return '<div class="empty">暂无运行记录，请先在聊天页执行任务。</div>';
+    function table(headers, rows, emptyText = '暂无运行记录，请先在聊天页执行任务。') {
+      if (!rows.length) return `<div class="empty">${safe(emptyText)}</div>`;
       return `<table><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
     }
     async function json(url) { const r=await fetch(url); if(!r.ok) throw new Error(`${url}: ${r.status}`); return r.json(); }
@@ -81,7 +81,7 @@
         const agentErrors=analytics.agent.error_distribution; const toolErrors=analytics.tools.summary.errors;
         const errorRows=[...Object.entries(agentErrors).map(([name,count])=>`<tr><td>Agent</td><td>${safe(name)}</td><td>${count}</td></tr>`),...Object.entries(toolErrors).map(([name,count])=>`<tr><td>工具</td><td>${safe(name)}</td><td>${count}</td></tr>`)]
         const latency=Object.entries(analytics.agent.latency_buckets).map(([name,count])=>`${safe(name)}：${count}`).join('　');
-        document.getElementById('analytics').innerHTML=`<div class="label">Agent 延迟分布：${latency || '暂无'}</div>${table(['来源','错误类型','次数'],errorRows)}`;
+        document.getElementById('analytics').innerHTML=`<div class="label">Agent 延迟分布：${latency || '暂无'}</div>${table(['来源','错误类型','次数'],errorRows,'当前统计范围内暂无错误记录。')}`;
         const i=index.data; document.getElementById('index-detail').innerHTML=table(['策略','文档数','维度','重排器','最近操作','更新时间'],[`<tr><td>${safe(i.retrieval_strategy)}</td><td>${safe(i.document_count)}</td><td>${safe(i.dimension)}</td><td>${safe(i.reranker)}</td><td>${safe(i.last_operation)}</td><td>${safe(i.updated_at)}</td></tr>`]);
         document.getElementById('prompt-versions').innerHTML=table(['Prompt','生效版本','内容摘要','变更说明'],versions.versions.filter(x=>x.is_active).map(x=>`<tr><td>${safe(x.name)}</td><td>${safe(x.version)}</td><td>${safe(x.content_sha256.slice(0,12))}</td><td>${safe(x.change_note)}</td></tr>`));
         document.getElementById('updated').textContent=`最近刷新：${new Date().toLocaleString()}`;

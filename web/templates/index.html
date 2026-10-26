@@ -568,10 +568,22 @@
     let lastBotBubble = null;
     let conversationId = localStorage.getItem('conversation_id') || crypto.randomUUID();
     localStorage.setItem('conversation_id', conversationId);
+    const welcomeTemplate = chatBox.querySelector('.message.bot').cloneNode(true);
+    const historyKey = () => `flowpilot.history.${conversationId}`;
+    let restoringHistory = false;
+    function saveHistory() {
+        if (restoringHistory) return;
+        const messages = Array.from(chatBox.querySelectorAll('.message[data-sender]')).slice(-100)
+            .map(node => ({sender: node.dataset.sender, text: node.dataset.raw || ''}));
+        try { sessionStorage.setItem(historyKey(), JSON.stringify(messages)); }
+        catch (error) { console.warn('会话展示缓存保存失败', error); }
+    }
 
     function addMessage(text, sender) {
         const msgDiv = document.createElement('div');
         msgDiv.className = 'message ' + sender;
+        msgDiv.dataset.sender = sender;
+        msgDiv.dataset.raw = text;
         
         const avatar = document.createElement('div');
         avatar.className = 'avatar';
@@ -583,11 +595,12 @@
         
         const bubble = document.createElement('div');
         bubble.className = 'bubble';
-        bubble.innerHTML = text.replace(/\n/g, '<br>');
+        bubble.innerHTML = formatMessageText(text);
         
         msgDiv.appendChild(avatar);
         msgDiv.appendChild(bubble);
         chatBox.appendChild(msgDiv);
+        saveHistory();
         
         // 平滑滚动到底部
         requestAnimationFrame(() => {
@@ -621,11 +634,36 @@
     }
 
     function formatMessageText(value) {
-        return escapeHtml(value).replace(/\n/g, '<br>');
+        const inline = text => escapeHtml(text)
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        const lines = String(value ?? '').split(/\r?\n/);
+        const output = [];
+        for (let i = 0; i < lines.length; i++) {
+            const cells = line => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(x => x.trim());
+            if (lines[i].includes('|') && i + 1 < lines.length && /^\s*\|?\s*:?-{3,}/.test(lines[i + 1])) {
+                const headers = cells(lines[i]);
+                let table = '<div style="overflow-x:auto"><table><thead><tr>' + headers.map(x => `<th>${inline(x)}</th>`).join('') + '</tr></thead><tbody>';
+                i += 2;
+                while (i < lines.length && lines[i].includes('|')) {
+                    table += '<tr>' + cells(lines[i]).map(x => `<td>${inline(x)}</td>`).join('') + '</tr>';
+                    i++;
+                }
+                i--;
+                output.push(table + '</tbody></table></div>');
+            } else if (/^#{1,6}\s+/.test(lines[i])) {
+                output.push('<div><strong>' + inline(lines[i].replace(/^#{1,6}\s+/, '')) + '</strong></div>');
+            } else if (/^\s*[-*•]\s+/.test(lines[i])) {
+                output.push('<div>• ' + inline(lines[i].replace(/^\s*[-*•]\s+/, '')) + '</div>');
+            } else {
+                output.push(inline(lines[i]) + '<br>');
+            }
+        }
+        return output.join('');
     }
 
     function splitReplySources(replyText) {
-        const sourceHeader = /(?:^|\n)\s*(?:来源文件|参考来源|来源)\s*[：:]/m;
+        const sourceHeader = /(?:^|\n)\s*(?:\*\*)?(?:来源文件|参考来源|引用来源|来源)\s*[：:]\s*(?:\*\*)?/m;
         const match = sourceHeader.exec(replyText);
         if (!match) return {answer: replyText.trim(), sources: []};
 
@@ -633,8 +671,8 @@
         const sourceBlock = replyText.slice(match.index).trim();
         const sources = [];
         for (const rawLine of sourceBlock.split(/\r?\n/)) {
-            let line = rawLine.trim();
-            if (!line || /^(?:来源文件|参考来源|来源)\s*[：:]?$/i.test(line)) continue;
+            let line = rawLine.trim().replace(/\*\*/g, '');
+            if (!line || /^(?:来源文件|参考来源|引用来源|来源)\s*[：:]?$/i.test(line)) continue;
             line = line
                 .replace(/^[-*•]\s*/, '')
                 .replace(/^\[\d+\]\s*/, '')
@@ -674,6 +712,7 @@
         const fieldLabels = {
             issue_description: '问题描述', urgency: '紧急程度', impact_scope: '影响范围',
             device_id: '设备编号', leave_type: '请假类型', start_date: '开始日期',
+            description: workflow.workflow_type === 'it_support' ? '设备与位置说明' : '费用说明',
             end_date: '结束日期', reason: '原因', amount: '金额', expense_type: '报销类型',
             resource: '资源名称', start_time: '开始时间', end_time: '结束时间'
         };
@@ -770,6 +809,8 @@
                 ? `<details class="bot-details"><summary>查看处理详情</summary><div class="bot-details-content">${detailSections.join('')}</div></details>`
                 : '';
             lastBotBubble.innerHTML = replies.join('') + errors.join('') + details;
+            lastBotBubble.closest('.message').dataset.raw = text;
+            saveHistory();
             
             // 内容更新后自动滚动
             requestAnimationFrame(() => {
@@ -840,6 +881,7 @@
     }
 
     clearBtn.onclick = async function() {
+        sessionStorage.removeItem(historyKey());
         try {
             await fetch(`/chat/session/${encodeURIComponent(conversationId)}`, {
                 method: 'DELETE'
@@ -851,7 +893,7 @@
         localStorage.setItem('conversation_id', conversationId);
 
         // 保留欢迎消息，只清除其他对话
-        const welcomeMessage = chatBox.querySelector('.message.bot').cloneNode(true);
+        const welcomeMessage = welcomeTemplate.cloneNode(true);
         chatBox.innerHTML = '';
         chatBox.appendChild(welcomeMessage);
         
@@ -861,6 +903,24 @@
         // 聚焦输入框
         userInput.focus();
     }
+
+    try {
+        const saved = JSON.parse(sessionStorage.getItem(historyKey()) || '[]');
+        if (Array.isArray(saved) && saved.length) {
+            restoringHistory = true;
+            chatBox.replaceChildren(welcomeTemplate.cloneNode(true));
+            for (const item of saved.slice(-100)) {
+                if (!item || !['user', 'bot'].includes(item.sender) || typeof item.text !== 'string') continue;
+                addMessage(item.text, item.sender);
+                if (item.sender === 'bot') {
+                    lastBotBubble = chatBox.lastElementChild.querySelector('.bubble');
+                    updateLastBotMessage(item.text);
+                    hydrateWorkflowCard(lastBotBubble, item.text);
+                }
+            }
+            restoringHistory = false;
+        }
+    } catch (error) { restoringHistory = false; console.warn('会话展示恢复失败', error); }
     
     // 添加回车键发送功能
     userInput.addEventListener('keypress', function(e) {
