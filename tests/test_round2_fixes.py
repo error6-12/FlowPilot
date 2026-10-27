@@ -15,6 +15,8 @@ def test_query_known_missing_and_cross_session():
     assert '已提交' in workflow_query_reply('查询流程 WF-ABC123 状态','own',engine)
     assert '未找到' in workflow_query_reply('查询 WF-ABC123 状态','other',engine)
     assert '未找到' in workflow_query_reply('查询 WF-UNKNOWN 状态','own',engine)
+    assert '查询对象' in workflow_query_reply('它现在什么状态','own',engine)
+    workflow_query_reply('查询 WF-ABC123 状态','own',engine)
     assert '已提交' in workflow_query_reply('它现在什么状态','own',engine)
     assert workflow_query_reply('我要请假','own',engine) is None
 

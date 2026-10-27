@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from threading import RLock
 from typing import Callable
 from uuid import uuid4
+from api.workflow_query_context import workflow_query_focus
 
 from agents.appointment_agent import AppointmentAgent
 from agents.consultant_agent import ConsultantAgent
@@ -78,6 +79,7 @@ class ConversationRuntimeStore:
             return runtime
 
     def reset(self, conversation_id: str) -> bool:
+        workflow_query_focus.clear(conversation_id)
         with self._lock:
             runtime = self._runtimes.pop(conversation_id, None)
         if runtime is None:
