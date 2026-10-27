@@ -9,7 +9,7 @@ def test_workflow_engine_persists_submit_and_audit(tmp_path):
     engine = WorkflowEngine(f"sqlite:///{database_file.as_posix()}")
     draft = WorkflowDraft.build(
         WorkflowType.RESOURCE_BOOKING,
-        {"resource": "A301会议室", "start_time": "14:00", "end_time": "16:00"},
+        {"resource": "A301会议室", "start_date": "2026-11-12", "end_date": "2026-11-12", "start_time": "14:00", "end_time": "16:00"},
     )
 
     try:

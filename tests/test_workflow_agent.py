@@ -24,6 +24,9 @@ class FakeWorkflowEngine:
     def __init__(self):
         self.saved = []
 
+    def get(self, workflow_id):
+        return None
+
     def save_draft(self, draft, conversation_id):
         if draft.workflow_id is None:
             draft.workflow_id = "WF-TEST000001"
@@ -92,7 +95,8 @@ async def test_agent_understands_chinese_time_followup_from_screenshot():
     assert draft.fields["resource"] == "A301会议室"
     assert draft.fields["start_time"] == "14:00"
     assert draft.fields["end_time"] == "16:00"
-    assert draft.status is WorkflowStatus.READY_FOR_CONFIRMATION
+    assert draft.status is WorkflowStatus.NEEDS_INFORMATION
+    assert 'start_date' in draft.missing_fields
     assert draft.assumptions
     assert "A301会议室" in chain.inputs[1]["current_draft"]
 
@@ -125,7 +129,7 @@ async def test_confirmation_submits_ready_draft_with_workflow_id():
     agent = make_agent(chain)
     agent.current_draft = WorkflowDraft.build(
         WorkflowType.RESOURCE_BOOKING,
-        {"resource": "A301会议室", "start_time": "14:00", "end_time": "16:00"},
+        {"resource": "A301会议室", "start_date": "2026-11-12", "end_date": "2026-11-12", "start_time": "14:00", "end_time": "16:00"},
     )
 
     draft = await agent.create_draft("对的")
@@ -179,12 +183,13 @@ async def test_duplicate_confirmation_keeps_submitted_workflow_terminal():
 
 
 @pytest.mark.asyncio
-async def test_tool_adapter_drops_fields_outside_target_schema():
+async def test_tool_adapter_preserves_booking_date_and_description():
     chain = FakeExtractionChain(
         WorkflowExtraction(
             workflow_type=WorkflowType.RESOURCE_BOOKING,
             resource="A301会议室",
-            start_date="明天",
+            start_date="2026-11-12",
+            description="评审会议",
             start_time="14:00",
             end_time="16:00",
             user_action=WorkflowAction.CONFIRM,
@@ -196,3 +201,5 @@ async def test_tool_adapter_drops_fields_outside_target_schema():
 
     assert draft.status is WorkflowStatus.SUBMITTED
     assert agent.last_tool_result.success is True
+    assert draft.fields['start_date'] == '2026-11-12'
+    assert agent.workflow_engine.saved[-1][2].fields['description'] == '评审会议'

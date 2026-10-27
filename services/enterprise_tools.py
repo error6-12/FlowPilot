@@ -34,12 +34,18 @@ class ReimbursementToolInput(WorkflowToolInput):
 class ITSupportToolInput(WorkflowToolInput):
     issue_description: str
     urgency: str
+    device_id: str | None = None
+    location: str | None = None
+    description: str | None = None
 
 
 class ResourceBookingToolInput(WorkflowToolInput):
     resource: str
+    start_date: str
+    end_date: str
     start_time: str
     end_time: str
+    description: str | None = None
 
 
 class WorkflowToolOutput(BaseModel):
@@ -68,9 +74,16 @@ def _handler(engine: WorkflowEngine, workflow_type: WorkflowType):
         excluded = {"workflow_id", "conversation_id"}
         fields = {
             key: value
-            for key, value in item.model_dump().items()
+            for key, value in item.model_dump(exclude_none=True).items()
             if key not in excluded
         }
+        previous = engine.get(item.workflow_id)
+        if previous:
+            if previous['conversation_id'] != item.conversation_id or previous['workflow_type'] != workflow_type.value:
+                raise ValueError('流程不属于当前会话或流程类型不匹配')
+            if previous['status'] in ('submitted', 'cancelled'):
+                raise ValueError('流程已经结束，请勿重复提交')
+            fields = {**previous['fields'], **fields}
         draft = WorkflowDraft.build(workflow_type, fields)
         draft.workflow_id = item.workflow_id
         submitted = engine.submit(draft, item.conversation_id)

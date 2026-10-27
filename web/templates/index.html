@@ -639,7 +639,15 @@
             .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
         const lines = String(value ?? '').split(/\r?\n/);
         const output = [];
+        let fenced = false;
+        let codeLines = [];
         for (let i = 0; i < lines.length; i++) {
+            if (/^\s*```/.test(lines[i])) {
+                if (fenced) { output.push('<pre><code>' + escapeHtml(codeLines.join('\n')) + '</code></pre>'); codeLines = []; }
+                fenced = !fenced;
+                continue;
+            }
+            if (fenced) { codeLines.push(lines[i]); continue; }
             const cells = line => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(x => x.trim());
             if (lines[i].includes('|') && i + 1 < lines.length && /^\s*\|?\s*:?-{3,}/.test(lines[i + 1])) {
                 const headers = cells(lines[i]);
@@ -659,6 +667,7 @@
                 output.push(inline(lines[i]) + '<br>');
             }
         }
+        if (fenced) output.push('<pre><code>' + escapeHtml(codeLines.join('\n')) + '</code></pre>');
         return output.join('');
     }
 
@@ -712,7 +721,8 @@
         const fieldLabels = {
             issue_description: '问题描述', urgency: '紧急程度', impact_scope: '影响范围',
             device_id: '设备编号', leave_type: '请假类型', start_date: '开始日期',
-            description: workflow.workflow_type === 'it_support' ? '设备与位置说明' : '费用说明',
+            description: workflow.workflow_type === 'it_support' ? '补充说明' : (workflow.workflow_type === 'resource_booking' ? '预订主题' : '费用说明'),
+            location: '位置',
             end_date: '结束日期', reason: '原因', amount: '金额', expense_type: '报销类型',
             resource: '资源名称', start_time: '开始时间', end_time: '结束时间'
         };

@@ -588,7 +588,14 @@
             const inline = value => escape(value).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
             const lines = String(content ?? '').split(/\r?\n/);
             const parts = [];
+            let fenced = false;
+            let codeLines = [];
             for (let i=0; i<lines.length; i++) {
+                if (/^\s*```/.test(lines[i])) {
+                    if (fenced) { parts.push('<pre><code>'+escape(codeLines.join('\n'))+'</code></pre>'); codeLines=[]; }
+                    fenced=!fenced; continue;
+                }
+                if (fenced) { codeLines.push(lines[i]); continue; }
                 const cells = line => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(x => x.trim());
                 if (lines[i].includes('|') && i+1<lines.length && /^\s*\|?\s*:?-{3,}/.test(lines[i+1])) {
                     let table='<div style="overflow:auto"><table><tr>'+cells(lines[i]).map(x=>`<th>${inline(x)}</th>`).join('')+'</tr>';
@@ -598,6 +605,7 @@
                 } else if (/^#{1,6}\s+/.test(lines[i])) parts.push('<div><strong>'+inline(lines[i].replace(/^#{1,6}\s+/,''))+'</strong></div>');
                 else parts.push('<div>'+inline(lines[i].replace(/^\s*[-*]\s+/, '• '))+'</div>');
             }
+            if (fenced) parts.push('<pre><code>'+escape(codeLines.join('\n'))+'</code></pre>');
             return '<details><summary>'+escape(String(content ?? '').replace(/[#*`]/g,'').slice(0,90))+'…（展开全文）</summary>'+parts.join('')+'</details>';
         }
         let knowledgeData = [];

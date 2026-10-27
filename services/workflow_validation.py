@@ -22,6 +22,11 @@ def validate_workflow(workflow_type, fields):
             raise ValueError('报销金额必须大于零，请修改后再提交。')
     if kind == 'resource_booking' and fields.get('start_time') and fields.get('end_time'):
         start, end = str(fields['start_time']), str(fields['end_time'])
+        if fields.get('start_date') and fields.get('end_date'):
+            if 'T' not in start and ' ' not in start:
+                start = f"{fields['start_date']}T{start}"
+            if 'T' not in end and ' ' not in end:
+                end = f"{fields['end_date']}T{end}"
         try:
             parser = datetime.fromisoformat if 'T' in start or ' ' in start else time.fromisoformat
             first, last = parser(start), parser(end)

@@ -14,7 +14,9 @@ def test_environment_used_by_default(monkeypatch, tmp_path):
     monkeypatch.setenv('DATABASE_URL', url)
     manager = SessionManager()
     try:
-        assert str(manager.engine.url) == url
+        from sqlalchemy.engine import make_url
+        assert manager.engine.url == make_url(url)
+        assert (tmp_path / 'configured.db').exists()
     finally:
         manager.close()
 

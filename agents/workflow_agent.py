@@ -42,6 +42,8 @@ FIELD_LABELS = {
     "description": "费用说明",
     "issue_description": "故障描述",
     "urgency": "紧急程度",
+    "device_id": "设备编号",
+    "location": "位置",
     "resource": "资源名称",
     "start_time": "开始时间",
     "end_time": "结束时间",
@@ -248,7 +250,7 @@ class WorkflowAgent:
             return
 
         summary = "、".join(
-            f"{('设备与位置说明' if key == 'description' and draft.workflow_type is WorkflowType.IT_SUPPORT else FIELD_LABELS.get(key, key))}：{value}" for key, value in draft.fields.items()
+            f"{({'description': '设备与位置说明', 'resource': '设备编号'}.get(key, FIELD_LABELS.get(key, key)) if draft.workflow_type is WorkflowType.IT_SUPPORT else ('预订主题' if key == 'description' and draft.workflow_type is WorkflowType.RESOURCE_BOOKING else FIELD_LABELS.get(key, key)))}：{value}" for key, value in draft.fields.items()
             if value is not None and key in FIELD_LABELS
         )
         if draft.assumptions:

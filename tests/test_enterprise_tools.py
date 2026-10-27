@@ -12,7 +12,7 @@ from services.workflow_engine import WorkflowEngine
         ("submit_leave_request", WorkflowType.LEAVE, {"start_date": "2026-10-01", "end_date": "2026-10-01", "reason": "家中有事"}),
         ("submit_reimbursement", WorkflowType.REIMBURSEMENT, {"amount": 500, "expense_type": "交通费", "description": "机场打车"}),
         ("create_it_ticket", WorkflowType.IT_SUPPORT, {"issue_description": "无法联网", "urgency": "紧急"}),
-        ("book_enterprise_resource", WorkflowType.RESOURCE_BOOKING, {"resource": "A301", "start_time": "14:00", "end_time": "16:00"}),
+        ("book_enterprise_resource", WorkflowType.RESOURCE_BOOKING, {"resource": "A301", "start_date": "2026-11-12", "end_date": "2026-11-12", "start_time": "14:00", "end_time": "16:00"}),
     ],
 )
 async def test_enterprise_workflow_tools_submit_and_persist(tmp_path, tool_name, workflow_type, fields):
