@@ -47,4 +47,33 @@ new vm.Script(ops);
 vm.runInContext(ops.slice(0,ops.indexOf('    async function json')),context);
 assert.match(context.table(['错误'],[],'暂无错误'),/暂无错误/);
 assert(!context.table(['错误'],[],'暂无错误').includes('暂无运行记录'));
-console.log('Frontend: syntax, Markdown/XSS escaping, sources, history save/restore, analytics empty state passed');
+// Exercise the actual reply-envelope renderer, not just Markdown in isolation.
+const messageNode={dataset:{sender:'bot',raw:''}};
+const bubble={innerHTML:'',closest:()=>messageNode};
+context.lastBotBubble=bubble;
+context.chatBox={querySelectorAll:()=>[messageNode],scrollTo:()=>{},scrollHeight:0};
+context.requestAnimationFrame=callback=>callback();
+vm.runInContext(script.slice(script.indexOf('    function updateLastBotMessage'),script.indexOf('    chatForm.onsubmit')),context);
+for (const fence of ['```','```text']) {
+    const raw='[THOUGHT][归类机器人]咨询任务[REPLY][咨询机器人]'+fence+'\n员工提交 → 主管审批\n<script>alert(1)</script>\n```\n**引用来源：**\n- hr_policy/leave_policy.md';
+    // Every boundary, including partial agent labels and partial fences.
+    for (let i=1;i<=raw.length;i++) context.updateLastBotMessage(raw.slice(0,i));
+    assert.match(bubble.innerHTML,/<pre><code>员工提交 → 主管审批\n&lt;script&gt;/);
+    assert(!bubble.innerHTML.includes('```'));
+    assert(!bubble.innerHTML.includes('[咨询机器人]'));
+    assert(!bubble.innerHTML.includes('<script>'));
+    assert.match(bubble.innerHTML,/hr_policy\/leave_policy.md/);
+    const saved=JSON.parse(cache.get('flowpilot.history.test-session'));
+    assert.equal(saved[0].text,raw);
+    bubble.innerHTML='';
+    // Restore through the real history loop and real reply renderer.
+    context.chatBox.replaceChildren=()=>{};
+    context.chatBox.lastElementChild={querySelector:()=>bubble};
+    context.addMessage=(text,sender)=>{messageNode.dataset={sender,raw:text};};
+    vm.runInContext(script.slice(script.indexOf('    try {\n        const saved = JSON.parse'),script.indexOf('    // 添加回车键')),context);
+    assert.match(bubble.innerHTML,/<pre><code>员工提交 → 主管审批/);
+    assert(!bubble.innerHTML.includes('```'));
+}
+context.updateLastBotMessage('[REPLY][咨询机器人]```\n尚未闭合\n<b>原样文本</b>');
+assert.match(bubble.innerHTML,/<pre><code>尚未闭合\n&lt;b&gt;/);
+console.log('Frontend: envelope + character-by-character streaming + real history restore + fenced Markdown/XSS + analytics passed');

@@ -772,7 +772,12 @@
                     const thoughtText = match[1].replace(/\[THOUGHT[^\]]*\]/, '').trim();
                     if (thoughtText) thoughts.push(thoughtText);
                 } else if (match[2]) {
-                    const rawReply = match[2].replace(/\[REPLY[^\]]*\]/, '').trim();
+                    // Agent display labels are envelope metadata, not Markdown.
+                    // Removing only known leading labels keeps a fence at line start
+                    // even when streaming delivers "[咨询机器人]```" without a newline.
+                    const rawReply = match[2].replace(/\[REPLY[^\]]*\]/, '')
+                        .replace(/^(?:\s*\[(?:咨询机器人|流程机器人|归类机器人|任务协调Agent|知识咨询Agent|Workflow Agent)\])+\s*/i, '')
+                        .trim();
                     const parsed = splitReplySources(rawReply);
                     parsed.sources.forEach(source => {
                         if (!sources.includes(source)) sources.push(source);
