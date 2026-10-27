@@ -6,19 +6,48 @@ from services.workflow_engine import WorkflowEngine
 
 
 def workflow_query_reply(text, conversation_id, engine):
-    """Read actual records only, scoped to the requesting conversation."""
+    """Conservative record lookup; policy questions stay with semantic routing.
+
+    A query verb plus a business noun is not evidence of an instance lookup.
+    Without an ID, require explicit reference to an existing personal/recent
+    instance. Ambiguous status requests clarify instead of selecting a record.
+    """
     identifier = re.search(r'\bWF-[A-Za-z0-9]+\b', text, re.I)
-    query = any(word in text for word in ('查询', '状态', '进度', '查一下', '查下'))
-    if not query or not (identifier or any(word in text for word in ('流程', '申请', '工单', '它', '刚才'))):
+    query = any(word in text for word in ('查询', '状态', '进度', '查一下', '查下', '查查', '批了吗', '处理到哪'))
+    negated_lookup = re.search(r'(?:不是|并非|不要|不需要|无需|不用|不想).{0,12}(?:查|申请.*状态|流程.*状态)', text)
+    if negated_lookup:
+        return None
+    if not query:
         return None
     if identifier:
         record = engine.get(identifier.group().upper())
         if not record or record.get('conversation_id') != conversation_id:
             return '未找到当前会话可查询的该流程，请核对编号，并在创建流程的会话中查询。'
     else:
-        records = engine.list_by_conversation(conversation_id, limit=1)
+        # These phrases describe general knowledge, not persisted instances.
+        if any(word in text for word in ('制度', '规则', '审批流程', '审批顺序', '知识库', '只咨询', '制度咨询', '是什么意思', '含义')):
+            return None
+        status_query = any(word in text for word in ('状态', '进度', '批了吗', '处理到哪'))
+        reference = re.search(r'它|这(?:个|条|笔|次)|该(?:流程|申请|工单)|刚才|刚刚|上一条|最近|我的|我提交的|本人', text)
+        business = any(word in text for word in ('流程', '申请', '工单', '请假', '报销', '预订', '预约'))
+        if not reference:
+            if status_query and business:
+                return '你想查询哪一条申请的状态？请提供 WF 流程编号，或说明“我刚才提交的请假/报销/工单/预订”。'
+            return None
+        if not status_query and not business:
+            return None
+        types = {
+            'leave': ('请假',), 'reimbursement': ('报销',),
+            'it_support': ('工单', '报修'), 'resource_booking': ('预订', '预约'),
+        }
+        requested_types = [kind for kind, words in types.items() if any(word in text for word in words)]
+        if len(requested_types) > 1:
+            return '请说明要查询哪一类申请，或提供对应的 WF 流程编号。'
+        records = engine.list_by_conversation(conversation_id, limit=100)
+        if requested_types:
+            records = [record for record in records if record.get('workflow_type') == requested_types[0]]
         if not records:
-            return '当前会话暂无流程记录，请提供流程编号，或先创建流程。'
+            return '未找到当前会话中符合条件的流程记录，请提供流程编号，并在创建该流程的会话中查询。'
         record = records[0]
     statuses = {'submitted':'已提交','cancelled':'已取消','ready_for_confirmation':'等待确认','needs_information':'待补充信息'}
     return f"流程编号：{record['workflow_id']}；状态：{statuses.get(record['status'], record['status'])}。此状态表示本平台记录，不代表外部 OA 已审批。"
