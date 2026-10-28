@@ -507,6 +507,7 @@
                 <i class="fas fa-diagram-project"></i>
                 流程 API
             </button>
+            <a class="nav-btn" id="new-session" href="/?new_session=1" target="_blank" rel="noopener" style="text-decoration:none" title="在新标签页创建独立会话，保留当前会话">新会话</a>
             <button class="nav-btn" id="clear-btn">
                 <i class="fas fa-trash-alt"></i>
                 清空对话
@@ -566,8 +567,15 @@
     const clearBtn = document.getElementById('clear-btn');
     const typingIndicator = document.getElementById('typing-indicator');
     let lastBotBubble = null;
-    let conversationId = localStorage.getItem('conversation_id') || crypto.randomUUID();
+    const sessionParams = new URLSearchParams(window.location.search);
+    const freshSession = sessionParams.has('new_session');
+    let conversationId = freshSession ? crypto.randomUUID() : (sessionStorage.getItem('conversation_id') || localStorage.getItem('conversation_id') || crypto.randomUUID());
+    sessionStorage.setItem('conversation_id', conversationId);
     localStorage.setItem('conversation_id', conversationId);
+    if (freshSession) {
+        sessionParams.delete('new_session');
+        window.history.replaceState(null, '', window.location.pathname + (sessionParams.toString() ? '?' + sessionParams.toString() : '') + window.location.hash);
+    }
     const welcomeTemplate = chatBox.querySelector('.message.bot').cloneNode(true);
     const historyKey = () => `flowpilot.history.${conversationId}`;
     let restoringHistory = false;
@@ -868,6 +876,7 @@
             if (responseConversationId) {
                 conversationId = responseConversationId;
                 localStorage.setItem('conversation_id', conversationId);
+                sessionStorage.setItem('conversation_id', conversationId);
             }
             
             hideTypingIndicator();
@@ -906,6 +915,7 @@
         }
         conversationId = crypto.randomUUID();
         localStorage.setItem('conversation_id', conversationId);
+        sessionStorage.setItem('conversation_id', conversationId);
 
         // 保留欢迎消息，只清除其他对话
         const welcomeMessage = welcomeTemplate.cloneNode(true);

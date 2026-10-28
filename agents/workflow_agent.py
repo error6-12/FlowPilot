@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import AsyncGenerator
 
 from langchain.prompts import PromptTemplate
@@ -254,7 +255,12 @@ class WorkflowAgent:
             if value is not None and key in FIELD_LABELS
         )
         if draft.assumptions:
-            assumptions = "；".join(draft.assumptions)
+            labels = {**FIELD_LABELS, 'workflow_type': '流程类型', 'user_action': '操作', 'null': '未提供'}
+            labels['description'] = '预订主题' if draft.workflow_type is WorkflowType.RESOURCE_BOOKING else '补充说明'
+            assumptions = "；".join(
+                re.sub(r'(?<![A-Za-z0-9_])(?:' + '|'.join(map(re.escape, sorted(labels, key=len, reverse=True))) + r')(?![A-Za-z0-9_])', lambda match: labels[match.group()], item)
+                for item in draft.assumptions
+            )
             yield (
                 f"[REPLY][流程机器人]{label}信息已收集完整：{summary}。"
                 f"我做了以下理解：{assumptions}。请确认是否正确。"

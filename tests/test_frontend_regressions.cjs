@@ -76,4 +76,23 @@ for (const fence of ['```','```text']) {
 }
 context.updateLastBotMessage('[REPLY][咨询机器人]```\n尚未闭合\n<b>原样文本</b>');
 assert.match(bubble.innerHTML,/<pre><code>尚未闭合\n&lt;b&gt;/);
-console.log('Frontend: envelope + character-by-character streaming + real history restore + fenced Markdown/XSS + analytics passed');
+// Bootstrap two tabs against shared localStorage. Explicit new-session must
+// not delete old history or change the other tab's ID after refresh.
+const sharedLocal=new Map([['conversation_id','original']]);
+const tabA=new Map([['flowpilot.history.original','old messages']]);
+const tabB=new Map(); let uuids=0;
+function bootstrap(tab,search) {
+    const storage=map=>({getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v)});
+    const location={search,pathname:'/',hash:''};
+    const window={location,history:{replaceState:(a,b,url)=>{location.search=new URL(url,'http://localhost').search;}}};
+    const ctx=vm.createContext({window,URLSearchParams,crypto:{randomUUID:()=>`new-${++uuids}`},sessionStorage:storage(tab),localStorage:storage(sharedLocal)});
+    vm.runInContext(script.slice(script.indexOf('    const sessionParams'),script.indexOf('    const welcomeTemplate')),ctx);
+    return {id:vm.runInContext('conversationId',ctx),search:location.search};
+}
+assert.equal(bootstrap(tabA,'?v=flowpilot-2').id,'original');
+const independent=bootstrap(tabB,'?new_session=1');
+assert.notEqual(independent.id,'original');
+assert.equal(bootstrap(tabA,'?v=flowpilot-2').id,'original');
+assert.equal(bootstrap(tabB,independent.search).id,independent.id);
+assert.equal(tabA.get('flowpilot.history.original'),'old messages');
+console.log('Frontend: streaming Markdown, history, analytics and independent new-session/refresh preservation passed');

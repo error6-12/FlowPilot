@@ -83,6 +83,18 @@ def remember_submitted_workflow(text, conversation_id, engine):
         if record and record.get('conversation_id') == conversation_id and record.get('status') == 'submitted':
             workflow_query_focus.set(conversation_id, record['workflow_id'])
 
+
+def repeat_confirmation_reply(text, conversation_id, engine, active_draft=None):
+    if active_draft is not None:
+        return None
+    if not re.fullmatch(r'\s*(?:确认|确认提交|提交|对的|正确|好的|可以)[。！!\s]*', text):
+        return None
+    identifier = workflow_query_focus.get(conversation_id)
+    record = engine.get(identifier) if identifier else None
+    if record and record.get('conversation_id') == conversation_id and record.get('status') == 'submitted':
+        return f"该申请已提交，无需重复确认，未再次提交。流程编号：{record['workflow_id']}。"
+    return None
+
 async def ProcessUserInput_stream(
     user_input,
     conversation_id: str = "default",
@@ -128,6 +140,19 @@ async def ProcessUserInput_stream(
             return
         runtime = conversation_runtime_store.get_or_create(conversation_id)
         async with runtime.execution_lock:
+            if re.fullmatch(r'\s*(?:确认|确认提交|提交|对的|正确|好的|可以)[。！!\s]*', user_input):
+                engine = WorkflowEngine()
+                try:
+                    workflow_agent = getattr(runtime.agent, 'workflow_agent', None)
+                    repeat_reply = repeat_confirmation_reply(user_input, conversation_id, engine, getattr(workflow_agent, 'current_draft', None))
+                finally:
+                    engine.close()
+                if repeat_reply:
+                    token = '[REPLY][任务协调Agent]' + repeat_reply
+                    output_chunks += 1
+                    output_chars += len(token)
+                    yield token
+                    return
             output_tail = ''
             async for token in runtime.agent.classify_task_stream(user_input):
                 output_tail = (output_tail + token)[-12000:]
